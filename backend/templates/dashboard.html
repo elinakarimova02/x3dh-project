@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>X3DH Dashboard</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        h2 { margin-top: 40px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #eee; }
+    </style>
+</head>
+<body>
+    <h1>X3DH Dashboard</h1>
+
+    <h2>Users</h2>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>Identity Key</th>
+            <th>Signed Prekey</th>
+            <th>SPK Signature</th>
+        </tr>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }}</td>
+            <td>{{ user.ik }}</td>
+            <td>{{ user.spk }}</td>
+            <td>{{ user.spk_sig }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Prekeys</h2>
+    <table>
+        <tr>
+            <th>Username</th>
+            <th>OPK</th>
+        </tr>
+        {% for username, opk_list in prekeys.items() %}
+            {% for opk in opk_list %}
+            <tr>
+                <td>{{ username }}</td>
+                <td>{{ opk }}</td>
+            </tr>
+            {% endfor %}
+        {% endfor %}
+    </table>
+
+    <h2>Pending Messages</h2>
+    <table>
+        <tr>
+            <th>Receiver</th>
+            <th>Count</th>
+        </tr>
+        {% for receiver, count in queues.items() %}
+        <tr>
+            <td>{{ receiver }}</td>
+            <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Recent Messages</h2>
+    <ul>
+        {% for log in logs %}
+        <li>{{ log }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
+
+
+

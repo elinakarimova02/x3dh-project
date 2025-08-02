@@ -1,0 +1,44 @@
+version: "3"
+services:
+  mqtt_broker:
+    image: eclipse-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "5050:5000"
+
+  user_alice:
+    build:
+      context: ./client
+    environment:
+      USERNAME: "alice"
+      PEER: "bob"
+      BACKEND: "http://backend:5000"
+    depends_on:
+      - backend
+
+  user_bob:
+    build:
+      context: ./client
+    environment:
+      USERNAME: "bob"
+      PEER: "alice"
+      BACKEND: "http://backend:5000"
+    depends_on:
+      - backend
+
+  user_charlie:
+    build:
+      context: ./client
+    environment:
+      USERNAME: "charlie"
+      PEER: "bob"
+      BACKEND: "http://backend:5000"
+    depends_on:
+      - backend
