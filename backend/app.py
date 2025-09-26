@@ -92,11 +92,23 @@ def send():
 
 @app.route('/receive/<username>', methods=['GET'])
 def receive(username):
+    if username not in user_messages or not user_messages[username]:
+        return jsonify([])
+
+    messages = user_messages[username]
+    user_messages[username] = []
+
     with sqlite3.connect(DB) as conn:
         c = conn.cursor()
-        c.execute("SELECT id, sender, payload FROM messages WHERE receiver = ?", (username,))
-        msgs = [{'id': row[0], 'sender': row[1], 'payload': row[2]} for row in c.fetchall()]
-    return jsonify({'messages': msgs})
+        for msg in messages:
+            c.execute(
+                "INSERT INTO messages (sender, receiver, payload, timestamp) VALUES (?, ?, ?, ?)",
+                (msg['sender'], msg['receiver'], msg['payload'], msg['timestamp'])
+            )
+        conn.commit()
+
+    return jsonify(messages)
+
 
 @app.route('/ack/<msg_id>', methods=['POST'])
 def ack(msg_id):
@@ -109,33 +121,81 @@ def ack(msg_id):
 @app.route('/')
 def dashboard():
     with sqlite3.connect(DB) as conn:
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
 
-        # Get users
+        # Users table
+        c.execute("SELECT username, ik, spk, spk_sig FROM users")
+        users = c.fetchall()
+
+        # Prekeys table
+        c.execute("SELECT username, opk FROM prekeys")
+        prekeys_raw = c.fetchall()
+        prekeys = {}
+        for row in prekeys_raw:
+            prekeys.setdefault(row["username"], []).append(row["opk"])
+
+        # Pending message count per receiver
+        c.execute("SELECT receiver, COUNT(*) as count FROM messages GROUP BY receiver")
+        queues = {row["receiver"]: row["count"] for row in c.fetchall()}
+
+        # Last 10 messages
+        c.execute("SELECT id, sender, receiver, payload, timestamp FROM messages ORDER BY timestamp DESC LIMIT 10")
+        logs = [
+            f"[{row['timestamp']}] From {row['sender']} to {row['receiver']}: {row['payload']}"
+            for row in c.fetchall()
+        ]
+
+    return render_template(
+        'dashboard.html',
+        users=users,
+        prekeys=prekeys,
+        queues=queues,
+        logs=logs
+    )
+
+@app.route('/api/dashboard-data')
+def dashboard_data():
+    with sqlite3.connect(DB) as conn:
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # Users
         c.execute("SELECT username, ik, spk, spk_sig FROM users")
         users = [
-            {'username': row[0], 'ik': row[1], 'spk': row[2], 'spk_sig': row[3]}
+            {"username": row["username"], "ik": row["ik"], "spk": row["spk"], "sig": row["spk_sig"]}
             for row in c.fetchall()
         ]
 
-        # Prekeys (assume table: prekeys with username and opk)
+        # Prekeys
         c.execute("SELECT username, opk FROM prekeys")
-        rows = c.fetchall()
-        prekeys = {}
-        for username, opk in rows:
-            prekeys.setdefault(username, []).append(opk)
-        
-        # Queues (how many messages are waiting per user)
-        c.execute("SELECT receiver, COUNT(*) FROM messages GROUP BY receiver")
-        queues = {row[0]: row[1] for row in c.fetchall()}
-
-        # Recent messages
-        c.execute("SELECT id, sender, receiver, timestamp FROM messages ORDER BY timestamp DESC LIMIT 10")
-        logs = [
-            f"[{row[3]}] From {row[1]} to {row[2]} (msg id: {row[0]})"
+        prekeys = [
+            {"username": row["username"], "opk": row["opk"]}
             for row in c.fetchall()
         ]
-    return render_template('dashboard.html', users=users, prekeys=prekeys, queues=queues, logs=logs)
+
+        # Pending messages per receiver
+        c.execute("SELECT receiver, COUNT(*) as count FROM messages GROUP BY receiver")
+        pending = [
+            {"receiver": row["receiver"], "count": row["count"]}
+            for row in c.fetchall()
+        ]
+
+        # Last 10 messages
+        c.execute("SELECT id, sender, receiver, payload, timestamp FROM messages ORDER BY timestamp DESC LIMIT 10")
+        recent = [
+            {"id": row["id"], "timestamp": row["timestamp"], "sender": row["sender"],
+             "receiver": row["receiver"], "payload": row["payload"]}
+            for row in c.fetchall()
+        ]
+
+    return jsonify({
+        "users": users,
+        "prekeys": prekeys,
+        "pending": pending,
+        "recent": recent
+    })
+
 
 
 if __name__ == '__main__':
