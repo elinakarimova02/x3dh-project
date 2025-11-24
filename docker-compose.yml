@@ -1,4 +1,5 @@
 version: ""
+
 services:
   mqtt_broker:
     image: eclipse-mosquitto
@@ -18,7 +19,7 @@ services:
       context: ./client
     environment:
       USERNAME: "alice"
-      PEER: "bob"
+      PEERS: "bob,charlie,dave,eve"
       BACKEND: "http://backend:5000"
     depends_on:
       - backend
@@ -28,7 +29,7 @@ services:
       context: ./client
     environment:
       USERNAME: "bob"
-      PEER: "alice"
+      PEERS: "alice,charlie,dave"
       BACKEND: "http://backend:5000"
     depends_on:
       - backend
@@ -38,7 +39,27 @@ services:
       context: ./client
     environment:
       USERNAME: "charlie"
-      PEER: "bob"
+      PEERS: "alice,bob,eve"
+      BACKEND: "http://backend:5000"
+    depends_on:
+      - backend
+
+  user_dave:
+    build:
+      context: ./client
+    environment:
+      USERNAME: "dave"
+      PEERS: "alice,bob"
+      BACKEND: "http://backend:5000"
+    depends_on:
+      - backend
+
+  user_eve:
+    build:
+      context: ./client
+    environment:
+      USERNAME: "eve"
+      PEERS: "alice,charlie"
       BACKEND: "http://backend:5000"
     depends_on:
       - backend

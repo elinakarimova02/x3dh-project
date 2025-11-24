@@ -2,4 +2,5 @@ FROM python:3.11-slim
 WORKDIR /app
 COPY client.py .
 RUN pip install requests
-CMD ["python", "client.py"]
+# CMD ["python", "client.py"]
+CMD ["sh", "-c", "sleep 5 && python client.py"]

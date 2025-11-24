@@ -19,4 +19,4 @@ with sqlite3.connect(DB) as conn:
         )
     """)
 
-    print("✅ Messages table created.")
+    print("Messages table created.")

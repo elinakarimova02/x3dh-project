@@ -92,22 +92,33 @@ def send():
 
 @app.route('/receive/<username>', methods=['GET'])
 def receive(username):
-    if username not in user_messages or not user_messages[username]:
-        return jsonify([])
-
-    messages = user_messages[username]
-    user_messages[username] = []
-
     with sqlite3.connect(DB) as conn:
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        for msg in messages:
-            c.execute(
-                "INSERT INTO messages (sender, receiver, payload, timestamp) VALUES (?, ?, ?, ?)",
-                (msg['sender'], msg['receiver'], msg['payload'], msg['timestamp'])
-            )
-        conn.commit()
 
-    return jsonify(messages)
+        # Fetch pending messages
+        c.execute("""
+            SELECT id, sender, receiver, payload, timestamp
+            FROM messages
+            WHERE receiver = ?
+            ORDER BY timestamp ASC
+        """, (username,))
+
+        messages = c.fetchall()
+
+        # Convert rows to dicts
+        messages_list = [
+            {
+                "id": row["id"],
+                "sender": row["sender"],
+                "receiver": row["receiver"],
+                "payload": row["payload"],
+                "timestamp": row["timestamp"]
+            }
+            for row in messages
+        ]
+
+    return jsonify({"messages": messages_list})
 
 
 @app.route('/ack/<msg_id>', methods=['POST'])
